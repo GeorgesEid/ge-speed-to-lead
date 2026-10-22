@@ -1,0 +1,397 @@
+{
+    "name":  "GE-02 GHL Booking Watcher",
+    "nodes":  [
+                  {
+                      "parameters":  {
+                                         "rule":  {
+                                                      "interval":  [
+                                                                       {
+                                                                           "field":  "minutes",
+                                                                           "minutesInterval":  1
+                                                                       }
+                                                                   ]
+                                                  }
+                                     },
+                      "id":  "c678c97f-9c08-d0a6-c7e2-5a87ab265a7f",
+                      "name":  "Every minute",
+                      "type":  "n8n-nodes-base.scheduleTrigger",
+                      "typeVersion":  1.2,
+                      "position":  [
+                                       0,
+                                       200
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "httpMethod":  "POST",
+                                         "path":  "ge-booking-check",
+                                         "authentication":  "headerAuth",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "c5d1477e-f382-43e8-1020-a767a9520949",
+                      "name":  "Check-now webhook",
+                      "type":  "n8n-nodes-base.webhook",
+                      "typeVersion":  2,
+                      "position":  [
+                                       0,
+                                       420
+                                   ],
+                      "credentials":  {
+                                          "httpHeaderAuth":  {
+                                                                 "id":  "awy23prTBnlejc8a",
+                                                                 "name":  "GE Webhook Secret"
+                                                             }
+                                      },
+                      "webhookId":  "41780d69-5743-cad1-8dc6-9990c20bad03"
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://xwhpuezctsfdpvygscqf.supabase.co/rest/v1/rpc/ge_ghl_watchlist",
+                                         "authentication":  "predefinedCredentialType",
+                                         "nodeCredentialType":  "supabaseApi",
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{ JSON.stringify({ p: {} }) }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "18438c83-4122-8c63-b896-0836416240b0",
+                      "name":  "Live bookings (Supabase)",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       220,
+                                       300
+                                   ],
+                      "maxTries":  3,
+                      "executeOnce":  true,
+                      "retryOnFail":  true,
+                      "waitBetweenTries":  2000,
+                      "credentials":  {
+                                          "supabaseApi":  {
+                                                              "id":  "mi9Rhq8pbuELYjuA",
+                                                              "name":  "GE Supabase"
+                                                          }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://services.leadconnectorhq.com/contacts/search",
+                                         "authentication":  "genericCredentialType",
+                                         "genericAuthType":  "httpHeaderAuth",
+                                         "sendHeaders":  true,
+                                         "headerParameters":  {
+                                                                  "parameters":  [
+                                                                                     {
+                                                                                         "name":  "Version",
+                                                                                         "value":  "2021-07-28"
+                                                                                     }
+                                                                                 ]
+                                                              },
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{ JSON.stringify({ locationId: \u0027yLiKZKvk2CeI2ckIqd1L\u0027, page: 1, pageLimit: 30, sort: [{ field: \u0027dateUpdated\u0027, direction: \u0027desc\u0027 }] }) }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "c1400553-5f99-fd6b-9f21-a643af190489",
+                      "name":  "Recently updated GHL contacts",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       440,
+                                       300
+                                   ],
+                      "waitBetweenTries":  2000,
+                      "retryOnFail":  true,
+                      "notes":  "Read-only GHL call: the 30 most recently updated contacts.",
+                      "executeOnce":  true,
+                      "maxTries":  3,
+                      "credentials":  {
+                                          "httpHeaderAuth":  {
+                                                                 "id":  "ZjsPtY3ASymxLLOY",
+                                                                 "name":  "GE GHL API"
+                                                             }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "// GE-02 · Pick contacts to check\n// GHL moves the deals itself (free GHL workflows on the GE calendar). n8n only READS GHL, because\n// the course API key is read-only. Each run we check:\n//   1. contacts GHL updated in the last 15 minutes that belong to us (GE source / GE Ref field), and\n//   2. every contact with a live booking in Supabase (catches reschedules, cancels, showed, no-show).\n// The \"check now\" webhook (Test Lab) checks one contact and records every pass, to prove repeats are harmless.\n\nconst FIELD_REF = \u0027TyLHg4wBD0vLmZWloWkX\u0027;\nconst FIELD_SOURCE = \u0027NAYrM9ij0toziCTZakGT\u0027;\nconst FIELD_RESCHEDULE = \u0027QUmykeJTj7r7P3LkqieA\u0027;\nconst FIELD_CANCEL = \u0027cBfKulVnYqmaDzbMi2zS\u0027;\n\nconst field = (c, id) =\u003e ((c.customFields || []).find((f) =\u003e f.id === id) || {}).value || \u0027\u0027;\nconst out = new Map();\nconst add = (id, extra = {}) =\u003e {\n  if (!id) return;\n  out.set(id, { contact_id: id, email: \u0027\u0027, name: \u0027\u0027, ref: \u0027\u0027, reschedule_url: \u0027\u0027, cancel_url: \u0027\u0027, record_all: false, ...(out.get(id) || {}), ...extra });\n};\n\nlet manual = null;\ntry { if ($(\u0027Check-now webhook\u0027).isExecuted) manual = $(\u0027Check-now webhook\u0027).first().json.body || {}; } catch (e) { /* schedule run */ }\n\nif (manual) {\n  add(String(manual.contact_id || \u0027\u0027), { record_all: true });\n} else {\n  for (const id of $(\u0027Live bookings (Supabase)\u0027).first().json.contact_ids || []) add(id);\n}\n\nconst cutoff = Date.now() - 15 * 60 * 1000;\nfor (const c of $input.first().json.contacts || []) {\n  const mine = String(c.source || \u0027\u0027).startsWith(\u0027GE\u0027) || field(c, FIELD_REF) || field(c, FIELD_SOURCE);\n  const recent = new Date(c.dateUpdated || 0).getTime() \u003e= cutoff;\n  const details = {\n    email: c.email || \u0027\u0027,\n    name: [c.firstName || c.firstNameLowerCase, c.lastName || c.lastNameLowerCase].filter(Boolean).join(\u0027 \u0027),\n    ref: field(c, FIELD_REF),\n    reschedule_url: field(c, FIELD_RESCHEDULE),\n    cancel_url: field(c, FIELD_CANCEL),\n  };\n  if (out.has(c.id)) add(c.id, details);                 // already on the list: just enrich it\n  else if (!manual \u0026\u0026 mine \u0026\u0026 recent) add(c.id, details); // new activity on one of our contacts\n}\n\nreturn [...out.values()].map((json) =\u003e ({ json }));\n"
+                                     },
+                      "id":  "fe0e26ba-0745-fa0f-61ea-e7ff9bc69cb5",
+                      "name":  "Pick contacts to check",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       660,
+                                       300
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "GET",
+                                         "url":  "=https://services.leadconnectorhq.com/contacts/{{ $json.contact_id }}/appointments",
+                                         "authentication":  "genericCredentialType",
+                                         "genericAuthType":  "httpHeaderAuth",
+                                         "sendHeaders":  true,
+                                         "headerParameters":  {
+                                                                  "parameters":  [
+                                                                                     {
+                                                                                         "name":  "Version",
+                                                                                         "value":  "2021-07-28"
+                                                                                     }
+                                                                                 ]
+                                                              },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "108a2e04-d1d0-2d5c-712c-2335dfa3931c",
+                      "name":  "Read appointments (GHL)",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       880,
+                                       300
+                                   ],
+                      "maxTries":  3,
+                      "retryOnFail":  true,
+                      "waitBetweenTries":  2000,
+                      "credentials":  {
+                                          "httpHeaderAuth":  {
+                                                                 "id":  "ZjsPtY3ASymxLLOY",
+                                                                 "name":  "GE GHL API"
+                                                             }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "mode":  "runOnceForEachItem",
+                                         "jsCode":  "// GE-02 · Our calendar only (runs once per contact)\n// GHL returns times like \"2026-10-22 13:30:00\" in the sub-account\u0027s own timezone.\n// We keep only appointments of the GE calendar and convert their times to UTC.\n\nconst CALENDAR_ID = \u0027iF7jGk4s5l57ZiAVnqfx\u0027;\nconst TZ = \u0027Asia/Beirut\u0027;\n\nconst toUtc = (s) =\u003e {\n  if (!s) return null;\n  const str = String(s);\n  const dt = /[TZ+]/.test(str.slice(10))\n    ? DateTime.fromISO(str, { setZone: true })\n    : DateTime.fromFormat(str, \u0027yyyy-MM-dd HH:mm:ss\u0027, { zone: TZ });\n  return dt.isValid ? dt.toUTC().toISO() : null;\n};\n\nconst contact = $(\u0027Pick contacts to check\u0027).item.json;\nconst events = ($json.events || [])\n  .filter((e) =\u003e e.calendarId === CALENDAR_ID)\n  .map((e) =\u003e ({\n    id: e.id,\n    status: e.appointmentStatus || e.appoinmentStatus || e.status || \u0027\u0027,\n    start_at: toUtc(e.startTime),\n    end_at: toUtc(e.endTime),\n    deleted: e.deleted === true,\n  }))\n  .filter((e) =\u003e e.id \u0026\u0026 e.start_at);\n\nreturn { json: { p: { ...contact, tz: TZ, events } } };\n"
+                                     },
+                      "id":  "18085eb8-6d65-4532-2881-6ac1c431e7d2",
+                      "name":  "Our calendar only",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1100,
+                                       300
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://xwhpuezctsfdpvygscqf.supabase.co/rest/v1/rpc/ge_ghl_appt_sync",
+                                         "authentication":  "predefinedCredentialType",
+                                         "nodeCredentialType":  "supabaseApi",
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{ JSON.stringify({ p: $json.p }) }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "a3c4319f-307e-7ed3-fcde-ff9f97277e65",
+                      "name":  "Sync booking state",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       1320,
+                                       300
+                                   ],
+                      "maxTries":  3,
+                      "retryOnFail":  true,
+                      "waitBetweenTries":  2000,
+                      "credentials":  {
+                                          "supabaseApi":  {
+                                                              "id":  "mi9Rhq8pbuELYjuA",
+                                                              "name":  "GE Supabase"
+                                                          }
+                                      },
+                      "notes":  "Compares GHL appointments with Supabase: new = booked, new time = rescheduled, cancelled / showed / noshow. Same state again = no change."
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "loose"
+                                                                        },
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "id":  "0e93e804-94b2-a3d5-0c99-8c80ab001a62",
+                                                                                   "leftValue":  "={{ Number($json.changed) \u003e 0 }}",
+                                                                                   "rightValue":  true,
+                                                                                   "operator":  {
+                                                                                                    "type":  "boolean",
+                                                                                                    "operation":  "true",
+                                                                                                    "singleValue":  true
+                                                                                                }
+                                                                               }
+                                                                           ],
+                                                            "combinator":  "and"
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "7024c4cc-e541-02e7-78ee-766f49f38cdb",
+                      "name":  "Anything changed?",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1540,
+                                       300
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://n8ndemo.remotelyx.com/webhook/ge-send-now",
+                                         "authentication":  "genericCredentialType",
+                                         "genericAuthType":  "httpHeaderAuth",
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "{}",
+                                         "options":  {
+                                                         "timeout":  10000
+                                                     }
+                                     },
+                      "id":  "b84f64e1-da36-1518-c59f-9d4f9d4ccffe",
+                      "name":  "Send emails now",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       1760,
+                                       300
+                                   ],
+                      "notes":  "Wakes GE-03 so emails go out in seconds. If this fails, GE-03 still sends within 1 minute.",
+                      "executeOnce":  true,
+                      "credentials":  {
+                                          "httpHeaderAuth":  {
+                                                                 "id":  "awy23prTBnlejc8a",
+                                                                 "name":  "GE Webhook Secret"
+                                                             }
+                                      },
+                      "onError":  "continueRegularOutput"
+                  }
+              ],
+    "connections":  {
+                        "Anything changed?":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "Send emails now",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "Every minute":  {
+                                             "main":  [
+                                                          [
+                                                              {
+                                                                  "node":  "Live bookings (Supabase)",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ]
+                                                      ]
+                                         },
+                        "Check-now webhook":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "Live bookings (Supabase)",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "Live bookings (Supabase)":  {
+                                                         "main":  [
+                                                                      [
+                                                                          {
+                                                                              "node":  "Recently updated GHL contacts",
+                                                                              "type":  "main",
+                                                                              "index":  0
+                                                                          }
+                                                                      ]
+                                                                  ]
+                                                     },
+                        "Recently updated GHL contacts":  {
+                                                              "main":  [
+                                                                           [
+                                                                               {
+                                                                                   "node":  "Pick contacts to check",
+                                                                                   "type":  "main",
+                                                                                   "index":  0
+                                                                               }
+                                                                           ]
+                                                                       ]
+                                                          },
+                        "Pick contacts to check":  {
+                                                       "main":  [
+                                                                    [
+                                                                        {
+                                                                            "node":  "Read appointments (GHL)",
+                                                                            "type":  "main",
+                                                                            "index":  0
+                                                                        }
+                                                                    ]
+                                                                ]
+                                                   },
+                        "Read appointments (GHL)":  {
+                                                        "main":  [
+                                                                     [
+                                                                         {
+                                                                             "node":  "Our calendar only",
+                                                                             "type":  "main",
+                                                                             "index":  0
+                                                                         }
+                                                                     ]
+                                                                 ]
+                                                    },
+                        "Our calendar only":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "Sync booking state",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "Sync booking state":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Anything changed?",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               }
+                    },
+    "settings":  {
+                     "executionOrder":  "v1",
+                     "saveDataErrorExecution":  "all",
+                     "saveDataSuccessExecution":  "all",
+                     "errorWorkflow":  "dxHWrimMvIDTRuqS"
+                 },
+    "pinData":  {
+
+                },
+    "active":  false
+}

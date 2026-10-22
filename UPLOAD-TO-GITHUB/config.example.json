@@ -1,0 +1,29 @@
+{
+  "_readme": "Copy to config.local.json and fill in. NO secrets here: keys live in n8n credentials and secrets.local.json.",
+
+  "SUPABASE_URL": "https://YOUR-PROJECT.supabase.co",
+  "N8N_BASE_URL": "https://n8ndemo.remotelyx.com",
+  "GHL_LOCATION_ID": "yLiKZKvk2CeI2ckIqd1L",
+  "GHL_PIPELINE_NAME": "GE - Speed to Lead",
+  "GHL_CALENDAR_ID": "id from the calendar booking link",
+  "GHL_TIMEZONE": "the sub-account timezone, e.g. America/New_York",
+  "GHL_FIELD_REF": "custom field id of GE Ref",
+  "GHL_FIELD_SOURCE": "custom field id of GE Source",
+  "GHL_FIELD_RESCHEDULE": "custom field id of GE Reschedule Link",
+  "GHL_FIELD_CANCEL": "custom field id of GE Cancel Link",
+  "OPENAI_MODEL": "gpt-4.1-mini",
+
+  "AGENCY_NAME": "GE Growth Agency",
+  "SENDER_NAME": "GE Growth Team",
+  "AGENCY_EMAIL": "your-new-agency-mailbox@gmail.com",
+  "OWNER_EMAIL": "your-own-email@gmail.com",
+  "BOOKING_URL": "https://api.leadconnectorhq.com/widget/booking/YOUR-CALENDAR-ID",
+  "DASHBOARD_URL": "https://YOUR-PROJECT.vercel.app",
+
+  "ERROR_WORKFLOW_ID": "",
+  "CRED_SUPABASE_ID": "",
+  "CRED_GHL_ID": "",
+  "CRED_SECRET_ID": "",
+  "CRED_OPENAI_ID": "",
+  "CRED_GMAIL_ID": ""
+}

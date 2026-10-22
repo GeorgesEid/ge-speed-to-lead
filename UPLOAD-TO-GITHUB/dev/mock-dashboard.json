@@ -1,0 +1,6 @@
+{"from":"2026-10-01","to":"2026-10-20","include_sample":true,
+ "sources":[
+  {"source":"meta","leads":51,"qualified":15,"needs_review":8,"not_qualified":28,"booked":8,"showed":4,"no_shows":3,"median_reply_min":1.6,"slowest_reply_min":11.2,"replies_over_5_min":2,"not_replied":0,"spend":2322.58},
+  {"source":"website","leads":24,"qualified":11,"needs_review":3,"not_qualified":10,"booked":7,"showed":5,"no_shows":1,"median_reply_min":1.4,"slowest_reply_min":3.1,"replies_over_5_min":0,"not_replied":0,"spend":1322.58},
+  {"source":"referral","leads":7,"qualified":5,"needs_review":1,"not_qualified":1,"booked":4,"showed":3,"no_shows":0,"median_reply_min":1.2,"slowest_reply_min":2.4,"replies_over_5_min":0,"not_replied":0,"spend":387.10}],
+ "health":{"errors_7d":0,"last_error":null,"emails_waiting":0,"emails_failed":0,"last_live_lead_at":"2026-10-20T14:02:00Z","direct_bookings":0}}

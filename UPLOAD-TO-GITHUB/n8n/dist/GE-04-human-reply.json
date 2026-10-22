@@ -1,0 +1,253 @@
+{
+    "name":  "GE-04 Human Reply Detector",
+    "nodes":  [
+                  {
+                      "parameters":  {
+                                         "pollTimes":  {
+                                                           "item":  [
+                                                                        {
+                                                                            "mode":  "everyMinute"
+                                                                        }
+                                                                    ]
+                                                       },
+                                         "simple":  false,
+                                         "filters":  {
+                                                         "labelIds":  [
+                                                                          "INBOX"
+                                                                      ],
+                                                         "readStatus":  "both"
+                                                     },
+                                         "options":  {
+                                                         "downloadAttachments":  false
+                                                     }
+                                     },
+                      "id":  "fe1c2a6c-fce0-f747-bbca-694a750941fe",
+                      "name":  "Gmail: new email in inbox",
+                      "type":  "n8n-nodes-base.gmailTrigger",
+                      "typeVersion":  1.2,
+                      "position":  [
+                                       0,
+                                       200
+                                   ],
+                      "credentials":  {
+                                          "gmailOAuth2":  {
+                                                              "id":  "EkDXKD1cQEssZKBz",
+                                                              "name":  "GE Agency Gmail"
+                                                          }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "pollTimes":  {
+                                                           "item":  [
+                                                                        {
+                                                                            "mode":  "everyMinute"
+                                                                        }
+                                                                    ]
+                                                       },
+                                         "simple":  false,
+                                         "filters":  {
+                                                         "labelIds":  [
+                                                                          "SENT"
+                                                                      ],
+                                                         "readStatus":  "both"
+                                                     },
+                                         "options":  {
+                                                         "downloadAttachments":  false
+                                                     }
+                                     },
+                      "id":  "63e7f1e6-d9e2-1b8e-80a2-4c4c85ecbf41",
+                      "name":  "Gmail: email sent by a person",
+                      "type":  "n8n-nodes-base.gmailTrigger",
+                      "typeVersion":  1.2,
+                      "position":  [
+                                       0,
+                                       420
+                                   ],
+                      "credentials":  {
+                                          "gmailOAuth2":  {
+                                                              "id":  "EkDXKD1cQEssZKBz",
+                                                              "name":  "GE Agency Gmail"
+                                                          }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "// GE-04 · Read email\n// Works for both Gmail triggers: INBOX (a lead wrote to us) and SENT (someone on the team wrote to a lead).\n// Supabase decides whether it is a real human email and which lead it belongs to.\n\nconst AGENCY = \u0027ge.growth.demo@gmail.com\u0027.toLowerCase();\n\nconst addr = (f) =\u003e {\n  if (!f) return \u0027\u0027;\n  if (typeof f === \u0027string\u0027) {\n    const m = f.match(/\u003c([^\u003e]+)\u003e/);\n    return (m ? m[1] : f).trim().toLowerCase();\n  }\n  if (Array.isArray(f.value) \u0026\u0026 f.value[0]) return String(f.value[0].address || \u0027\u0027).toLowerCase();\n  if (f.text) return addr(f.text);\n  return \u0027\u0027;\n};\n\nreturn $input.all().map((item, i) =\u003e {\n  const j = item.json;\n  const from = addr(j.from ?? j.From);\n  const to = addr(j.to ?? j.To);\n  const labels = j.labelIds || (j.labels || []).map((l) =\u003e l.id || l.name) || [];\n  const direction = labels.includes(\u0027SENT\u0027) || from === AGENCY ? \u0027outbound\u0027 : \u0027inbound\u0027;\n  return {\n    json: {\n      p: {\n        direction,\n        from_email: from,\n        to_email: to,\n        subject: String(j.subject ?? j.Subject ?? \u0027\u0027),\n        message_id: String(j.id || j.messageId || \u0027\u0027),\n      },\n    },\n    pairedItem: { item: i },\n  };\n});\n"
+                                     },
+                      "id":  "318d5305-4291-e728-4d23-ba2826947633",
+                      "name":  "Read email",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       240,
+                                       300
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://xwhpuezctsfdpvygscqf.supabase.co/rest/v1/rpc/ge_human_reply",
+                                         "authentication":  "predefinedCredentialType",
+                                         "nodeCredentialType":  "supabaseApi",
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{ JSON.stringify({ p: $json.p }) }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "8cc93470-82f3-a268-d6e5-acdc3099ea22",
+                      "name":  "Record email",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       460,
+                                       300
+                                   ],
+                      "maxTries":  3,
+                      "retryOnFail":  true,
+                      "waitBetweenTries":  2000,
+                      "credentials":  {
+                                          "supabaseApi":  {
+                                                              "id":  "mi9Rhq8pbuELYjuA",
+                                                              "name":  "GE Supabase"
+                                                          }
+                                      },
+                      "notes":  "Finds the lead (ref L-123 in the subject, else the email address), ignores automated emails, and pauses all automation for that lead."
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "loose"
+                                                                        },
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "id":  "65f1ad5a-0d6e-b8e9-08e4-17b7b9bfb83f",
+                                                                                   "leftValue":  "={{ $json.paused_now === true }}",
+                                                                                   "rightValue":  true,
+                                                                                   "operator":  {
+                                                                                                    "type":  "boolean",
+                                                                                                    "operation":  "true",
+                                                                                                    "singleValue":  true
+                                                                                                }
+                                                                               }
+                                                                           ],
+                                                            "combinator":  "and"
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "6a89ad64-42bd-41d5-e531-f557efc622f3",
+                      "name":  "Paused just now?",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2,
+                      "position":  [
+                                       680,
+                                       300
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://n8ndemo.remotelyx.com/webhook/ge-send-now",
+                                         "authentication":  "genericCredentialType",
+                                         "genericAuthType":  "httpHeaderAuth",
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "{}",
+                                         "options":  {
+                                                         "timeout":  10000
+                                                     }
+                                     },
+                      "id":  "34232127-7d9b-600e-e2c2-61589b236934",
+                      "name":  "Send emails now",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       900,
+                                       300
+                                   ],
+                      "notes":  "Wakes GE-03 so emails go out in seconds. If this fails, GE-03 still sends within 1 minute.",
+                      "executeOnce":  true,
+                      "credentials":  {
+                                          "httpHeaderAuth":  {
+                                                                 "id":  "awy23prTBnlejc8a",
+                                                                 "name":  "GE Webhook Secret"
+                                                             }
+                                      },
+                      "onError":  "continueRegularOutput"
+                  }
+              ],
+    "connections":  {
+                        "Gmail: new email in inbox":  {
+                                                          "main":  [
+                                                                       [
+                                                                           {
+                                                                               "node":  "Read email",
+                                                                               "type":  "main",
+                                                                               "index":  0
+                                                                           }
+                                                                       ]
+                                                                   ]
+                                                      },
+                        "Gmail: email sent by a person":  {
+                                                              "main":  [
+                                                                           [
+                                                                               {
+                                                                                   "node":  "Read email",
+                                                                                   "type":  "main",
+                                                                                   "index":  0
+                                                                               }
+                                                                           ]
+                                                                       ]
+                                                          },
+                        "Paused just now?":  {
+                                                 "main":  [
+                                                              [
+                                                                  {
+                                                                      "node":  "Send emails now",
+                                                                      "type":  "main",
+                                                                      "index":  0
+                                                                  }
+                                                              ]
+                                                          ]
+                                             },
+                        "Read email":  {
+                                           "main":  [
+                                                        [
+                                                            {
+                                                                "node":  "Record email",
+                                                                "type":  "main",
+                                                                "index":  0
+                                                            }
+                                                        ]
+                                                    ]
+                                       },
+                        "Record email":  {
+                                             "main":  [
+                                                          [
+                                                              {
+                                                                  "node":  "Paused just now?",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ]
+                                                      ]
+                                         }
+                    },
+    "settings":  {
+                     "executionOrder":  "v1",
+                     "saveDataErrorExecution":  "all",
+                     "saveDataSuccessExecution":  "all",
+                     "errorWorkflow":  "dxHWrimMvIDTRuqS"
+                 },
+    "pinData":  {
+
+                },
+    "active":  false
+}

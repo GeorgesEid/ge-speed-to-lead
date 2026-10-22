@@ -1,0 +1,337 @@
+{
+    "name":  "GE-03 Email Sender + Watchdog",
+    "nodes":  [
+                  {
+                      "parameters":  {
+                                         "rule":  {
+                                                      "interval":  [
+                                                                       {
+                                                                           "field":  "minutes",
+                                                                           "minutesInterval":  1
+                                                                       }
+                                                                   ]
+                                                  }
+                                     },
+                      "id":  "f93aa41b-f201-3e5f-3001-2f3bbdb8c0cb",
+                      "name":  "Every minute",
+                      "type":  "n8n-nodes-base.scheduleTrigger",
+                      "typeVersion":  1.2,
+                      "position":  [
+                                       0,
+                                       200
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "httpMethod":  "POST",
+                                         "path":  "ge-send-now",
+                                         "authentication":  "headerAuth",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "573500f2-ba90-fd24-6f8f-7f81828b75d3",
+                      "name":  "Send-now webhook",
+                      "type":  "n8n-nodes-base.webhook",
+                      "typeVersion":  2,
+                      "position":  [
+                                       0,
+                                       420
+                                   ],
+                      "credentials":  {
+                                          "httpHeaderAuth":  {
+                                                                 "id":  "awy23prTBnlejc8a",
+                                                                 "name":  "GE Webhook Secret"
+                                                             }
+                                      },
+                      "webhookId":  "b18165c7-f899-8e86-31d5-15799c1ae463"
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://services.leadconnectorhq.com/contacts/search",
+                                         "authentication":  "genericCredentialType",
+                                         "genericAuthType":  "httpHeaderAuth",
+                                         "sendHeaders":  true,
+                                         "headerParameters":  {
+                                                                  "parameters":  [
+                                                                                     {
+                                                                                         "name":  "Version",
+                                                                                         "value":  "2021-07-28"
+                                                                                     }
+                                                                                 ]
+                                                              },
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{ JSON.stringify({ locationId: \u0027yLiKZKvk2CeI2ckIqd1L\u0027, page: 1, pageLimit: 100, filters: [{ field: \u0027tags\u0027, operator: \u0027eq\u0027, value: \u0027ge-stop-automation\u0027 }] }) }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "e678996d-a4dd-805c-5382-1e417597ff6f",
+                      "name":  "GHL: contacts with stop tag",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       240,
+                                       300
+                                   ],
+                      "waitBetweenTries":  2000,
+                      "retryOnFail":  true,
+                      "executeOnce":  true,
+                      "onError":  "continueRegularOutput",
+                      "maxTries":  2,
+                      "credentials":  {
+                                          "httpHeaderAuth":  {
+                                                                 "id":  "ZjsPtY3ASymxLLOY",
+                                                                 "name":  "GE GHL API"
+                                                             }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "// GE-03 · Collect GHL stop tags\n// Any GHL contact tagged \"ge-stop-automation\" gets paused before we send anything.\n// Matched by email (reading GHL works with the course key; writing goes through the GHL workflow).\n// If GHL can\u0027t be reached we still send (the other stop rules live in Supabase),\n// but the watchdog emails the owner about it once an hour.\n\nconst r = $input.first().json;\nconst failed = Boolean(r.error);\nconst emails = failed ? [] : (r.contacts || []).map((c) =\u003e String(c.email || \u0027\u0027).trim().toLowerCase()).filter(Boolean);\n\nreturn [{\n  json: {\n    p: {\n      stop_emails: emails,\n      ghl_check_failed: failed,\n      ghl_error: failed ? String(r.error?.message || r.error).slice(0, 300) : null,\n      limit: 25,\n    },\n  },\n}];\n"
+                                     },
+                      "id":  "2ab8e748-6ca2-036d-be8a-622966ba60eb",
+                      "name":  "Collect stop tags",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       460,
+                                       300
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://xwhpuezctsfdpvygscqf.supabase.co/rest/v1/rpc/ge_sender_tick",
+                                         "authentication":  "predefinedCredentialType",
+                                         "nodeCredentialType":  "supabaseApi",
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{ JSON.stringify({ p: $json.p }) }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "b3cb4c70-428d-3616-a60b-468193587a63",
+                      "name":  "Claim due emails",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       680,
+                                       300
+                                   ],
+                      "maxTries":  3,
+                      "retryOnFail":  true,
+                      "waitBetweenTries":  2000,
+                      "credentials":  {
+                                          "supabaseApi":  {
+                                                              "id":  "mi9Rhq8pbuELYjuA",
+                                                              "name":  "GE Supabase"
+                                                          }
+                                      },
+                      "notes":  "Applies stop tags, runs the watchdog, and atomically claims due emails (FOR UPDATE SKIP LOCKED), so two runs can never send the same email."
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "// GE-03 · Write emails\n// Every email the system sends is written here - one place to edit the wording.\n// Input: the messages Supabase just claimed. Output: one item per email.\n\nconst tick = $input.first().json;\nconst msgs = tick.messages || [];\nif (!msgs.length) return [];\n\nconst GHL_CALENDARS = \u0027https://app.gohighlevel.com/v2/location/yLiKZKvk2CeI2ckIqd1L/calendars/view\u0027;\n\nconst esc = (s) =\u003e String(s ?? \u0027\u0027).replace(/[\u0026\u003c\u003e\"\u0027]/g, (c) =\u003e ({ \u0027\u0026\u0027: \u0027\u0026amp;\u0027, \u0027\u003c\u0027: \u0027\u0026lt;\u0027, \u0027\u003e\u0027: \u0027\u0026gt;\u0027, \u0027\"\u0027: \u0027\u0026quot;\u0027, \"\u0027\": \u0027\u0026#39;\u0027 }[c]));\nconst p = (html) =\u003e `\u003cp style=\"margin:0 0 14px\"\u003e${html}\u003c/p\u003e`;\nconst btn = (href, label, color = \u0027#1a56db\u0027) =\u003e\n  `\u003cp style=\"margin:18px 0\"\u003e\u003ca href=\"${esc(href)}\" style=\"display:inline-block;background:${color};color:#ffffff;padding:11px 20px;border-radius:6px;text-decoration:none;font-weight:bold\"\u003e${esc(label)}\u003c/a\u003e\u003c/p\u003e`;\n\nconst when = (b) =\u003e {\n  if (!b || !b.start_at) return \u0027your scheduled time\u0027;\n  const dt = DateTime.fromISO(String(b.start_at), { zone: \u0027utc\u0027 }).setZone(b.tz || \u0027America/New_York\u0027);\n  return dt.isValid ? `${dt.toFormat(\"cccc, LLLL d \u0027at\u0027 h:mm a\")} (${dt.offsetNameShort})` : \u0027your scheduled time\u0027;\n};\n\n// GHL calendar link, pre-filled. GE Ref + GE Source travel as hidden fields of the booking form, so the\n// booking comes back linked to the exact lead. GHL\u0027s page turns \"+\" into a space, so emails with \"+\"\n// are not pre-filled (the lead types it; the GE Ref still links the booking).\nconst bookingLink = (s, l) =\u003e {\n  const q = [[\u0027first_name\u0027, l.first_name], [\u0027last_name\u0027, l.last_name], [\u0027ge_ref\u0027, l.ref], [\u0027ge_source\u0027, l.source]];\n  if (l.email \u0026\u0026 !l.email.includes(\u0027+\u0027)) q.push([\u0027email\u0027, l.email]);\n  return `${s.booking_url}?` + q.filter(([, v]) =\u003e v).map(([k, v]) =\u003e `${k}=${encodeURIComponent(v)}`).join(\u0027\u0026\u0027);\n};\n\nconst action = (s, a, token) =\u003e `${s.actions_url}?a=${a}\u0026t=${token}`;\n\nconst layout = (inner, s, footer) =\u003e\n  `\u003cdiv style=\"font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#1f2933;max-width:560px\"\u003e${inner}` +\n  `\u003cp style=\"margin-top:28px;color:#7b8794;font-size:12px\"\u003e${footer}\u003c/p\u003e\u003c/div\u003e`;\n\nfunction leadEmail(m) {\n  const s = m.settings, l = m.lead, b = m.booking;\n  const hi = p(`Hi ${esc(l.first_name || \u0027there\u0027)},`);\n  const sign = p(`${esc(s.sender_name)}\u003cbr\u003e${esc(s.agency_name)}`);\n  const book = btn(bookingLink(s, l), \u0027Pick a time for your call\u0027);\n  const manage = !b ? \u0027\u0027 : b.reschedule_url\n    ? p(`Need to change it? \u003ca href=\"${esc(b.reschedule_url)}\"\u003eReschedule\u003c/a\u003e${b.cancel_url ? ` or \u003ca href=\"${esc(b.cancel_url)}\"\u003ecancel\u003c/a\u003e` : \u0027\u0027}.`)\n    : p(\u0027Need to change it? Just reply to this email.\u0027);\n  const video = b \u0026\u0026 b.video_url ? p(`Video link: \u003ca href=\"${esc(b.video_url)}\"\u003e${esc(b.video_url)}\u003c/a\u003e`) : \u0027\u0027;\n  const service = l.service ? ` about ${esc(l.service.toLowerCase())}` : \u0027\u0027;\n\n  const T = {\n    qualified_booking_link: [\u0027Your strategy call with \u0027 + s.agency_name,\n      hi + p(`Thanks for reaching out${service}. From what you shared, it sounds like we can help.`) +\n      p(\u0027The next step is a free 30-minute strategy call. Pick any time that suits you:\u0027) + book +\n      p(\u0027You will get a confirmation right away and a reminder before the call.\u0027) + sign],\n    approved_booking_link: [\u0027Next step: your strategy call\u0027,\n      hi + p(\u0027Thanks for your patience. We looked at your details and would love to talk.\u0027) +\n      p(\u0027Pick a time for a free 30-minute strategy call:\u0027) + book + sign],\n    needs_review_ack: [\u0027Thanks, we got your details\u0027,\n      hi + p(`Thanks for contacting ${esc(s.agency_name)}${service}.`) +\n      p(\u0027A strategist is reviewing what you sent and will reply to you personally within one business day.\u0027) + sign],\n    not_qualified_reply: [\u0027Thanks for reaching out\u0027,\n      hi + p(`Thank you for thinking of ${esc(s.agency_name)}.`) +\n      p(\u0027Based on what you shared, we are probably not the right fit right now. We work mostly with B2B companies that invest $3,000 or more a month in growth, and we would rather tell you that honestly than waste your time.\u0027) +\n      p(\u0027If your plans change, just reply to this email and a real person will pick it up.\u0027) + sign],\n    declined_reply: [\u0027About your enquiry\u0027,\n      hi + p(\u0027Thanks again for your patience while we reviewed your details.\u0027) +\n      p(\u0027We do not think we are the best fit for you right now, and we would rather be honest than take on work we cannot do well.\u0027) +\n      p(\u0027If anything changes, just reply to this email.\u0027) + sign],\n    book_nudge_1: [\u0027Still up for a quick strategy call?\u0027,\n      hi + p(\u0027Just checking you saw the link for your free strategy call. It takes 30 minutes and you will leave with a clear plan, whether or not we work together.\u0027) +\n      book + sign],\n    book_nudge_2: [\u0027Last note from me\u0027,\n      hi + p(\"I don\u0027t want to fill your inbox, so this is my last reminder. If growing your pipeline is still on your list, grab a time here:\") +\n      book + p(\u0027If now is not the right time, no problem at all.\u0027) + sign],\n    booking_confirm: [\"You\u0027re booked: \" + when(b),\n      hi + p(`Your strategy call is confirmed for \u003cb\u003e${esc(when(b))}\u003c/b\u003e.`) + video +\n      p(\u0027To get the most out of it, have a rough idea of your monthly marketing budget and your sales goal for the next quarter.\u0027) +\n      manage + sign],\n    reschedule_confirm: [\u0027Your call has moved to \u0027 + when(b),\n      hi + p(`No problem, your strategy call is now \u003cb\u003e${esc(when(b))}\u003c/b\u003e. The old time is cancelled.`) + video + manage + sign],\n    reminder_24h: [\u0027Tomorrow: your strategy call\u0027,\n      hi + p(`A quick reminder that we are speaking \u003cb\u003e${esc(when(b))}\u003c/b\u003e.`) + video + manage + sign],\n    reminder_1h: [\u0027Starting in 1 hour\u0027,\n      hi + p(`Your strategy call starts in about an hour (\u003cb\u003e${esc(when(b))}\u003c/b\u003e).`) + video +\n      p(\u0027See you soon!\u0027) + manage + sign],\n    cancelled_rebook: [\u0027Your call was cancelled\u0027,\n      hi + p(\u0027Your strategy call has been cancelled. Whenever it suits you, you can pick a new time here:\u0027) + book + sign],\n    cancel_followup: [\u0027Want to find a new time?\u0027,\n      hi + p(\u0027Following up in case you still want that strategy call. A new time is one click away:\u0027) + book + sign],\n    noshow_1: [\u0027We missed you today\u0027,\n      hi + p(\"We missed you on today\u0027s call. No worries, these things happen.\") +\n      p(\u0027Grab another time that works better:\u0027) + book + sign],\n    noshow_2: [\u0027Still keen to talk?\u0027,\n      hi + p(\u0027Just making sure you saw my last note. Your strategy call is still on the table:\u0027) + book + sign],\n    noshow_3: [\u0027Closing the loop\u0027,\n      hi + p(\"I\u0027ll stop following up after this one. If you\u0027d still like to talk, the link below stays open:\") + book + sign],\n  };\n\n  const t = T[m.template];\n  if (!t) throw new Error(`No template called \"${m.template}\" (message ${m.id})`);\n  return {\n    subject: `${t[0]} [ref ${l.ref}]`,\n    html: layout(t[1], s, `${esc(s.agency_name)} · ref ${esc(l.ref)} · just reply to this email to reach a person`),\n  };\n}\n\nfunction ownerEmail(m) {\n  const s = m.settings, l = m.lead, b = m.booking, c = m.context || {};\n  const whoText = l ? ([l.first_name, l.last_name].filter(Boolean).join(\u0027 \u0027) || l.email) + (l.company ? ` (${l.company})` : \u0027\u0027) : \u0027\u0027;\n  const who = esc(whoText);\n  const row = (k, v) =\u003e v ? `\u003ctr\u003e\u003ctd style=\"padding:3px 12px 3px 0;color:#7b8794\"\u003e${k}\u003c/td\u003e\u003ctd style=\"padding:3px 0\"\u003e${esc(v)}\u003c/td\u003e\u003c/tr\u003e` : \u0027\u0027;\n  const details = l ? `\u003ctable style=\"font-size:14px;margin:8px 0 14px\"\u003e${\n    row(\u0027Ref\u0027, l.ref) + row(\u0027Email\u0027, l.email) + row(\u0027Phone\u0027, l.phone) + row(\u0027Source\u0027, l.source) +\n    row(\u0027Company size\u0027, l.company_size) + row(\u0027Budget\u0027, l.monthly_budget) + row(\u0027Service\u0027, l.service) +\n    row(\u0027Timeline\u0027, l.timeline) + row(\u0027Message\u0027, l.message) + row(\u0027AI score\u0027, l.score) + row(\u0027Reason\u0027, l.reason)}\u003c/table\u003e` : \u0027\u0027;\n  const takeover = l ? btn(action(s, \u0027takeover\u0027, l.owner_token), \"I\u0027ll handle this lead myself\", \u0027#52606d\u0027) : \u0027\u0027;\n\n  const T = {\n    owner_needs_review: [`Needs review: ${whoText}`,\n      p(`\u003cb\u003e${who}\u003c/b\u003e needs a human decision.`) + details +\n      btn(action(s, \u0027approve\u0027, l.owner_token), \u0027Approve: send booking link\u0027, \u0027#0e9f6e\u0027) +\n      btn(action(s, \u0027decline\u0027, l.owner_token), \u0027Decline politely\u0027, \u0027#c81e1e\u0027) + takeover],\n    attendance_check: [`Did ${whoText} show up?`,\n      p(`Your call with \u003cb\u003e${who}\u003c/b\u003e was scheduled for \u003cb\u003e${esc(when(b))}\u003c/b\u003e.`) +\n      p(\u0027Open the appointment in GHL and set its status to \u003cb\u003eShowed\u003c/b\u003e or \u003cb\u003eNo-show\u003c/b\u003e. The deal moves by itself, and no-shows automatically get the re-book emails.\u0027) +\n      btn(GHL_CALENDARS, \u0027Open GHL calendar\u0027, \u0027#1a56db\u0027)],    owner_paused: [`Automation stopped: ${whoText}`,\n      p(`All automatic emails to \u003cb\u003e${who}\u003c/b\u003e are stopped because \u003cb\u003e${esc(c.reason || l.paused_reason)}\u003c/b\u003e.`) +\n      p(`${Number(c.cancelled || 0)} scheduled email(s) were cancelled. Please reply to them personally.`) + details],\n    owner_alert: [`⚠ ${c.title || \u0027Problem in Speed-to-Lead\u0027}`,\n      p(`\u003cb\u003e${esc(c.title)}\u003c/b\u003e`) + p(esc(c.body)) + (l ? details : \u0027\u0027) +\n      (s.dashboard_url ? p(`\u003ca href=\"${esc(s.dashboard_url)}\"\u003eOpen the dashboard\u003c/a\u003e`) : \u0027\u0027)],\n  };\n\n  const t = T[m.template];\n  if (!t) throw new Error(`No owner template called \"${m.template}\" (message ${m.id})`);\n  return { subject: `[GE] ${t[0]}`, html: layout(t[1], s, \u0027GE Speed-to-Lead · automatic message to the owner\u0027) };\n}\n\nreturn msgs.map((m) =\u003e {\n  const e = m.to_owner ? ownerEmail(m) : leadEmail(m);\n  return { json: { id: m.id, template: m.template, to: m.to_email, subject: e.subject, html: e.html }, pairedItem: { item: 0 } };\n});\n"
+                                     },
+                      "id":  "97015894-bcae-9ff6-29ce-864ee3701196",
+                      "name":  "Write emails",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       900,
+                                       300
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "resource":  "message",
+                                         "operation":  "send",
+                                         "sendTo":  "={{ $json.to }}",
+                                         "subject":  "={{ $json.subject }}",
+                                         "emailType":  "html",
+                                         "message":  "={{ $json.html }}",
+                                         "options":  {
+                                                         "appendAttribution":  false,
+                                                         "senderName":  "GE Growth Team"
+                                                     }
+                                     },
+                      "id":  "39d3a923-77b2-52af-d172-6ea4e424a4fe",
+                      "name":  "Send email (Gmail)",
+                      "type":  "n8n-nodes-base.gmail",
+                      "typeVersion":  2.1,
+                      "position":  [
+                                       1120,
+                                       300
+                                   ],
+                      "onError":  "continueErrorOutput",
+                      "credentials":  {
+                                          "gmailOAuth2":  {
+                                                              "id":  "EkDXKD1cQEssZKBz",
+                                                              "name":  "GE Agency Gmail"
+                                                          }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://xwhpuezctsfdpvygscqf.supabase.co/rest/v1/rpc/ge_mark_sent",
+                                         "authentication":  "predefinedCredentialType",
+                                         "nodeCredentialType":  "supabaseApi",
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{ JSON.stringify({ p: { id: $(\u0027Write emails\u0027).item.json.id, provider_message_id: $json.id || \u0027\u0027 } }) }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "2fe3d15c-4c9f-9a17-ec5b-36efdd2af416",
+                      "name":  "Mark sent",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       1340,
+                                       200
+                                   ],
+                      "maxTries":  3,
+                      "retryOnFail":  true,
+                      "waitBetweenTries":  2000,
+                      "credentials":  {
+                                          "supabaseApi":  {
+                                                              "id":  "mi9Rhq8pbuELYjuA",
+                                                              "name":  "GE Supabase"
+                                                          }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://xwhpuezctsfdpvygscqf.supabase.co/rest/v1/rpc/ge_mark_failed",
+                                         "authentication":  "predefinedCredentialType",
+                                         "nodeCredentialType":  "supabaseApi",
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{ JSON.stringify({ p: { id: $(\u0027Write emails\u0027).item.json.id, error: typeof $json.error === \u0027string\u0027 ? $json.error : JSON.stringify($json.error || \u0027Gmail send failed\u0027) } }) }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "9df8860b-de29-86e1-01af-b0732142cadc",
+                      "name":  "Mark failed (retry later)",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       1340,
+                                       420
+                                   ],
+                      "maxTries":  3,
+                      "retryOnFail":  true,
+                      "waitBetweenTries":  2000,
+                      "credentials":  {
+                                          "supabaseApi":  {
+                                                              "id":  "mi9Rhq8pbuELYjuA",
+                                                              "name":  "GE Supabase"
+                                                          }
+                                      }
+                  }
+              ],
+    "connections":  {
+                        "Every minute":  {
+                                             "main":  [
+                                                          [
+                                                              {
+                                                                  "node":  "GHL: contacts with stop tag",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ]
+                                                      ]
+                                         },
+                        "Send-now webhook":  {
+                                                 "main":  [
+                                                              [
+                                                                  {
+                                                                      "node":  "GHL: contacts with stop tag",
+                                                                      "type":  "main",
+                                                                      "index":  0
+                                                                  }
+                                                              ]
+                                                          ]
+                                             },
+                        "GHL: contacts with stop tag":  {
+                                                            "main":  [
+                                                                         [
+                                                                             {
+                                                                                 "node":  "Collect stop tags",
+                                                                                 "type":  "main",
+                                                                                 "index":  0
+                                                                             }
+                                                                         ]
+                                                                     ]
+                                                        },
+                        "Collect stop tags":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "Claim due emails",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "Claim due emails":  {
+                                                 "main":  [
+                                                              [
+                                                                  {
+                                                                      "node":  "Write emails",
+                                                                      "type":  "main",
+                                                                      "index":  0
+                                                                  }
+                                                              ]
+                                                          ]
+                                             },
+                        "Write emails":  {
+                                             "main":  [
+                                                          [
+                                                              {
+                                                                  "node":  "Send email (Gmail)",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ]
+                                                      ]
+                                         },
+                        "Send email (Gmail)":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Mark sent",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ],
+                                                                [
+                                                                    {
+                                                                        "node":  "Mark failed (retry later)",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               }
+                    },
+    "settings":  {
+                     "executionOrder":  "v1",
+                     "saveDataErrorExecution":  "all",
+                     "saveDataSuccessExecution":  "all",
+                     "errorWorkflow":  "dxHWrimMvIDTRuqS"
+                 },
+    "pinData":  {
+
+                },
+    "active":  false
+}

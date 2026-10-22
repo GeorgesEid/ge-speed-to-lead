@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Free Growth Plan</title>
+<meta name="description" content="GE Growth Agency - book a free 30-minute B2B growth strategy call">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<main class="wrap form-page">
+  <div class="brand">GE Growth Agency</div>
+  <h1 style="margin-top:18px">Get more qualified sales meetings</h1>
+  <p class="sub">Tell us about your business. If we're a fit, you'll get a link to book a free 30-minute strategy call within minutes.</p>
+
+  <form class="card section" id="lead-form" data-source="website" novalidate>
+    <div class="row">
+      <div><label for="first_name">First name</label><input id="first_name" name="first_name" required autocomplete="given-name"></div>
+      <div><label for="last_name">Last name</label><input id="last_name" name="last_name" autocomplete="family-name"></div>
+    </div>
+    <div class="row">
+      <div><label for="email">Work email</label><input id="email" name="email" type="email" required autocomplete="email"></div>
+      <div><label for="phone">Phone <span class="opt">(optional)</span></label><input id="phone" name="phone" type="tel" autocomplete="tel"></div>
+    </div>
+    <div class="row">
+      <div><label for="company">Company</label><input id="company" name="company" autocomplete="organization"></div>
+      <div><label for="website">Website <span class="opt">(optional)</span></label><input id="website" name="website" placeholder="yourcompany.com"></div>
+    </div>
+    <div class="row">
+      <div><label for="company_size">Company size</label>
+        <select id="company_size" name="company_size"><option value="">Choose…</option><option>1-10</option><option>11-50</option><option>51-200</option><option>201-1000</option><option>1000+</option></select></div>
+      <div><label for="monthly_budget">Monthly marketing budget</label>
+        <select id="monthly_budget" name="monthly_budget"><option value="">Choose…</option><option>Under $1,000</option><option>$1,000-$3,000</option><option>$3,000-$10,000</option><option>$10,000+</option></select></div>
+    </div>
+    <div class="row">
+      <div><label for="service">What do you need?</label>
+        <select id="service" name="service"><option value="">Choose…</option><option>Lead generation</option><option>Paid ads</option><option>Outbound sales</option><option>Marketing automation</option><option>Not sure yet</option></select></div>
+      <div><label for="timeline">When do you want to start?</label>
+        <select id="timeline" name="timeline"><option value="">Choose…</option><option>ASAP</option><option>Within 30 days</option><option>1-3 months</option><option>Just researching</option></select></div>
+    </div>
+    <label for="message">Anything else? <span class="opt">(optional)</span></label>
+    <textarea id="message" name="message" placeholder="Who do you sell to, and what's your sales goal for next quarter?"></textarea>
+    <div class="hp" aria-hidden="true"><label>Leave empty<input name="company_url" tabindex="-1" autocomplete="off"></label></div>
+    <p style="margin-top:16px"><button class="btn" type="submit">Send</button></p>
+    <div class="msg" id="msg" role="status"></div>
+  </form>
+  <p class="foot">Demo site for a training project. Please use made-up details and your own email address.</p>
+</main>
+<script src="/forms.js"></script>
+</body>
+</html>

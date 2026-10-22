@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Speed-to-Lead Test Lab</title>
+<meta name="description" content="Send test leads and booking events through the real system and watch what happens">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .lab-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .btns .btn { padding: 9px 14px; font-size: 14px; }
+  .chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid var(--border); background: var(--surface-2); }
+  .chip.sent { border-color: var(--good); }
+  .chip.cancelled { border-color: var(--text-3); color: var(--text-2); }
+  .chip.failed { border-color: var(--critical); }
+  .chip.pending, .chip.sending { border-color: var(--warning); }
+  #timeline table td, #timeline table th { text-align: left; font-size: 13px; white-space: normal; }
+  .kv { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0; }
+  .kv div { background: var(--surface-2); border-radius: 8px; padding: 8px 10px; }
+  .kv .k { font-size: 12px; color: var(--text-2); }
+  .kv .v { font-weight: 700; }
+  @media (max-width: 860px) { .lab-grid { grid-template-columns: 1fr; } .kv { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>Test Lab</h1>
+  <p class="sub">Sends test events through the real n8n workflows, then shows exactly what the system did for that lead.
+    Use your own Gmail with dots added (for example <code>y.ourname@gmail.com</code>, Gmail ignores dots) and made-up details.</p>
+
+  <div class="card section" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap">
+    <div style="flex:1;min-width:200px"><label for="pass">Lab passcode</label><input id="pass" type="password" autocomplete="off"></div>
+    <div style="flex:2;min-width:240px"><label for="email">Test lead email</label><input id="email" type="email" placeholder="y.ourname@gmail.com"></div>
+    <label class="toggle" style="margin-bottom:10px"><input type="checkbox" id="three"> Send everything 3 times at once</label>
+  </div>
+
+  <div class="lab-grid section">
+    <section class="card">
+      <h2>1 · A lead arrives from Meta Ads</h2>
+      <p class="muted">Simulates a Meta Lead Ads webhook (same shape Meta sends). Pick a lead profile:</p>
+      <div class="btns">
+        <button class="btn" data-meta="fit">Good fit</button>
+        <button class="btn secondary" data-meta="unclear">Unclear</button>
+        <button class="btn secondary" data-meta="bad">Bad fit</button>
+        <button class="btn secondary" data-meta="inject">Tries to trick the AI</button>
+      </div>
+      <p class="muted" style="margin-top:12px">Website and referral leads: use the real <a href="/form">website form</a> and <a href="/refer">referral form</a>.</p>
+    </section>
+
+    <section class="card">
+      <h2>2 · Booking (real GHL calendar)</h2>
+      <p class="muted">Book like the lead would: the page is pre-filled with this lead's name and GE ref. Reschedule or cancel with the
+        links in the confirmation email; mark <b>Showed / No-show</b> on the appointment in GHL. GHL moves the deal itself and the
+        system notices within a minute.</p>
+      <div class="btns">
+        <a class="btn" id="book-link" href="#" target="_blank" rel="noopener">Open this lead's booking page</a>
+        <button class="btn secondary" id="recheck">Re-check GHL now</button>
+      </div>
+      <p class="muted" style="margin-top:10px">Tip: tick "3 times at once" and press Re-check to prove a repeated booking event changes nothing.</p>
+    </section>
+  </div>
+
+  <div class="msg" id="msg" role="status"></div>
+
+  <section class="card section">
+    <div class="head" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <h2>3 · What the system did for this lead</h2>
+      <div style="display:flex;gap:12px;align-items:center">
+        <label class="toggle"><input type="checkbox" id="auto" checked> Refresh every 5 s</label>
+        <button class="btn secondary" id="refresh">Refresh now</button>
+      </div>
+    </div>
+    <div id="timeline"><p class="muted">Enter the passcode and a lead email.</p></div>
+  </section>
+</main>
+<script src="/lab.js"></script>
+</body>
+</html>

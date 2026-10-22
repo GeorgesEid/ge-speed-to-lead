@@ -1,0 +1,139 @@
+{
+    "name":  "GE-99 Error Alerts",
+    "nodes":  [
+                  {
+                      "parameters":  {
+
+                                     },
+                      "id":  "99181d90-9e80-36b9-fb58-d7e7b352e9c1",
+                      "name":  "When any GE workflow fails",
+                      "type":  "n8n-nodes-base.errorTrigger",
+                      "typeVersion":  1,
+                      "position":  [
+                                       0,
+                                       300
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "// GE-99 · Describe the error\n// Every GE workflow points here (Settings → Error workflow), so no failure is silent.\n\nconst j = $input.first().json;\nconst ex = j.execution || {};\nconst err = ex.error || j.trigger?.error || {};\nconst wf = j.workflow?.name || \u0027Unknown workflow\u0027;\nconst node = ex.lastNodeExecuted || err.node?.name || \u0027unknown step\u0027;\nconst message = String(err.message || err.description || \u0027Unknown error\u0027).slice(0, 900);\nconst esc = (s) =\u003e String(s ?? \u0027\u0027).replace(/[\u0026\u003c\u003e\"\u0027]/g, (c) =\u003e ({ \u0027\u0026\u0027: \u0027\u0026amp;\u0027, \u0027\u003c\u0027: \u0027\u0026lt;\u0027, \u0027\u003e\u0027: \u0027\u0026gt;\u0027, \u0027\"\u0027: \u0027\u0026quot;\u0027, \"\u0027\": \u0027\u0026#39;\u0027 }[c]));\n\nconst html = `\u003cdiv style=\"font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#1f2933;max-width:560px\"\u003e\n\u003cp\u003e\u003cb\u003e${esc(wf)}\u003c/b\u003e failed at step \u003cb\u003e${esc(node)}\u003c/b\u003e.\u003c/p\u003e\n\u003cp style=\"background:#fdf2f2;border-left:4px solid #c81e1e;padding:10px 12px\"\u003e${esc(message)}\u003c/p\u003e\n${ex.url ? `\u003cp\u003e\u003ca href=\"${esc(ex.url)}\"\u003eOpen this execution in n8n\u003c/a\u003e\u003c/p\u003e` : \u0027\u0027}\n\u003cp style=\"color:#7b8794;font-size:12px\"\u003eExecution ${esc(ex.id || \u0027-\u0027)} · mode ${esc(ex.mode || \u0027-\u0027)} · also logged in Supabase table ge_errors and shown on the dashboard.\u003c/p\u003e\n\u003c/div\u003e`;\n\nreturn [{\n  json: {\n    p: {\n      source: \u0027n8n\u0027,\n      workflow: wf,\n      node,\n      message,\n      details: { execution_id: ex.id || null, url: ex.url || null, mode: ex.mode || null },\n    },\n    subject: `[GE] ❌ ${wf} failed at \"${node}\"`,\n    html,\n  },\n}];\n"
+                                     },
+                      "id":  "228c7ba7-e2db-0915-48b0-a6f61b75ac1a",
+                      "name":  "Describe the error",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       220,
+                                       300
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://xwhpuezctsfdpvygscqf.supabase.co/rest/v1/rpc/ge_log_error",
+                                         "authentication":  "predefinedCredentialType",
+                                         "nodeCredentialType":  "supabaseApi",
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{ JSON.stringify({ p: $json.p }) }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "181f04aa-eac6-3c9f-9007-35b893499778",
+                      "name":  "Log error in Supabase",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       440,
+                                       300
+                                   ],
+                      "waitBetweenTries":  2000,
+                      "retryOnFail":  true,
+                      "notes":  "If Supabase itself is down we still send the email.",
+                      "onError":  "continueRegularOutput",
+                      "maxTries":  3,
+                      "credentials":  {
+                                          "supabaseApi":  {
+                                                              "id":  "mi9Rhq8pbuELYjuA",
+                                                              "name":  "GE Supabase"
+                                                          }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "resource":  "message",
+                                         "operation":  "send",
+                                         "sendTo":  "georgeseid7@gmail.com",
+                                         "subject":  "={{ $(\u0027Describe the error\u0027).item.json.subject }}",
+                                         "emailType":  "html",
+                                         "message":  "={{ $(\u0027Describe the error\u0027).item.json.html }}",
+                                         "options":  {
+                                                         "appendAttribution":  false,
+                                                         "senderName":  "GE Growth Team"
+                                                     }
+                                     },
+                      "id":  "36e8c589-634e-e619-aedb-e720b3cf2e7c",
+                      "name":  "Email the owner",
+                      "type":  "n8n-nodes-base.gmail",
+                      "typeVersion":  2.1,
+                      "position":  [
+                                       660,
+                                       300
+                                   ],
+                      "maxTries":  3,
+                      "retryOnFail":  true,
+                      "waitBetweenTries":  5000,
+                      "credentials":  {
+                                          "gmailOAuth2":  {
+                                                              "id":  "EkDXKD1cQEssZKBz",
+                                                              "name":  "GE Agency Gmail"
+                                                          }
+                                      }
+                  }
+              ],
+    "connections":  {
+                        "When any GE workflow fails":  {
+                                                           "main":  [
+                                                                        [
+                                                                            {
+                                                                                "node":  "Describe the error",
+                                                                                "type":  "main",
+                                                                                "index":  0
+                                                                            }
+                                                                        ]
+                                                                    ]
+                                                       },
+                        "Describe the error":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Log error in Supabase",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Log error in Supabase":  {
+                                                      "main":  [
+                                                                   [
+                                                                       {
+                                                                           "node":  "Email the owner",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       }
+                                                                   ]
+                                                               ]
+                                                  }
+                    },
+    "settings":  {
+                     "executionOrder":  "v1",
+                     "saveDataErrorExecution":  "all",
+                     "saveDataSuccessExecution":  "all"
+                 },
+    "pinData":  {
+
+                },
+    "active":  false
+}

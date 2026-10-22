@@ -1,0 +1,6 @@
+{
+  "name": "ge-speed-to-lead",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=18" }
+}

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lead Source Dashboard</title>
+<meta name="description" content="Which lead source brings the cheapest booked calls - GE Growth Agency (GE Speed-to-Lead)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='9' width='3' height='6' rx='1' fill='%232a78d6'/%3E%3Crect x='6.5' y='5' width='3' height='10' rx='1' fill='%23eb6834'/%3E%3Crect x='12' y='1' width='3' height='14' rx='1' fill='%231baf7a'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<main class="wrap">
+  <div class="top">
+    <div>
+      <h1>Which lead source brings the cheapest booked calls?</h1>
+      <p class="sub">GE Growth Agency · every number is per source, never mixed together</p>
+    </div>
+    <a class="pill" id="health" href="#health-detail" aria-live="polite"><span class="dot" style="background:var(--text-3)"></span>Checking…</a>
+  </div>
+
+  <div class="controls" role="group" aria-label="Filters">
+    <div class="seg" id="period" role="group" aria-label="Period">
+      <button type="button" data-p="this_month" aria-pressed="true">This month</button>
+      <button type="button" data-p="last_month" aria-pressed="false">Last month</button>
+      <button type="button" data-p="last_90" aria-pressed="false">Last 90 days</button>
+    </div>
+    <label class="toggle"><input type="checkbox" id="sample" checked> Include sample history</label>
+    <span class="muted" id="range"></span>
+  </div>
+
+  <section class="section card hero" id="hero" aria-live="polite">
+    <div class="skeleton">Loading the numbers…</div>
+  </section>
+
+  <section class="section card">
+    <div class="head">
+      <div>
+        <h2>Cost per booked call</h2>
+        <p class="muted">Ad spend in the period ÷ leads from that source who booked a call. Cheapest on top.</p>
+      </div>
+    </div>
+    <div class="bars" id="cpb"></div>
+  </section>
+
+  <section class="section">
+    <div class="head" style="margin-bottom:12px">
+      <div>
+        <h2>Each source, start to finish</h2>
+        <p class="muted">Leads → Qualified → Booked → Showed, how fast we replied, and what each step cost. Bar length = share of that source's own leads.</p>
+      </div>
+    </div>
+    <div class="grid3" id="sources"></div>
+  </section>
+
+  <section class="section card">
+    <details class="numbers">
+      <summary>See all the numbers in a table</summary>
+      <div class="tbl-wrap"><table id="table"></table></div>
+    </details>
+  </section>
+
+  <section class="section" id="health-detail"></section>
+
+  <p class="foot">
+    Leads are counted in the period they opted in (New York time). Spend comes from the ad spend sheet and is
+    prorated by day, so a half-finished month only counts what was spent so far. "Booked" = leads who booked at
+    least one call; "Showed" = confirmed attended. No-show rate = no-shows ÷ calls with a known outcome.
+    Refreshes every 30 seconds while open.
+  </p>
+</main>
+<div class="tip" id="tip" role="tooltip"></div>
+<script src="/app.js"></script>
+</body>
+</html>

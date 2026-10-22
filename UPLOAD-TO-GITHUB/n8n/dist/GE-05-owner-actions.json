@@ -1,0 +1,298 @@
+{
+    "name":  "GE-05 Owner Actions",
+    "nodes":  [
+                  {
+                      "parameters":  {
+                                         "httpMethod":  "GET",
+                                         "path":  "ge-owner-action",
+                                         "responseMode":  "responseNode",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "6a781f35-2f91-3a08-2520-52bfedd5a587",
+                      "name":  "Owner opened a link (GET)",
+                      "type":  "n8n-nodes-base.webhook",
+                      "typeVersion":  2,
+                      "position":  [
+                                       0,
+                                       200
+                                   ],
+                      "webhookId":  "1e888607-c7cf-9d01-b27c-3c3ec54a8cac"
+                  },
+                  {
+                      "parameters":  {
+                                         "httpMethod":  "POST",
+                                         "path":  "ge-owner-action",
+                                         "responseMode":  "responseNode",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "b58826ea-7ace-fff8-072b-abe1c68cba66",
+                      "name":  "Owner pressed Confirm (POST)",
+                      "type":  "n8n-nodes-base.webhook",
+                      "typeVersion":  2,
+                      "position":  [
+                                       0,
+                                       420
+                                   ],
+                      "webhookId":  "57106e83-a84e-e4de-2883-7d5bae7bc0da"
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://xwhpuezctsfdpvygscqf.supabase.co/rest/v1/rpc/ge_owner_action",
+                                         "authentication":  "predefinedCredentialType",
+                                         "nodeCredentialType":  "supabaseApi",
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{ JSON.stringify({ p: { token: $json.query.t || \u0027\u0027, action: $json.query.a || \u0027\u0027, confirm: false } }) }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "4305261f-90b5-9d6f-29ae-1503f28ad147",
+                      "name":  "Preview action",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       220,
+                                       200
+                                   ],
+                      "maxTries":  3,
+                      "retryOnFail":  true,
+                      "waitBetweenTries":  2000,
+                      "credentials":  {
+                                          "supabaseApi":  {
+                                                              "id":  "mi9Rhq8pbuELYjuA",
+                                                              "name":  "GE Supabase"
+                                                          }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://xwhpuezctsfdpvygscqf.supabase.co/rest/v1/rpc/ge_owner_action",
+                                         "authentication":  "predefinedCredentialType",
+                                         "nodeCredentialType":  "supabaseApi",
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{ JSON.stringify({ p: { token: ($json.body \u0026\u0026 $json.body.t) || \u0027\u0027, action: ($json.body \u0026\u0026 $json.body.a) || \u0027\u0027, confirm: true } }) }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "9cf8d20c-8ba9-3132-5692-49f3063dec7b",
+                      "name":  "Apply action",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       220,
+                                       420
+                                   ],
+                      "maxTries":  3,
+                      "retryOnFail":  true,
+                      "waitBetweenTries":  2000,
+                      "credentials":  {
+                                          "supabaseApi":  {
+                                                              "id":  "mi9Rhq8pbuELYjuA",
+                                                              "name":  "GE Supabase"
+                                                          }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "mode":  "runOnceForEachItem",
+                                         "jsCode":  "// GE-05 · Owner page\n// Opening a link only shows a preview with a Confirm button (email security scanners open links\n// automatically - they must never mark someone a no-show). Pressing Confirm POSTs and saves.\n\nconst r = $json;\nconst esc = (s) =\u003e String(s ?? \u0027\u0027).replace(/[\u0026\u003c\u003e\"\u0027]/g, (c) =\u003e ({ \u0027\u0026\u0027: \u0027\u0026amp;\u0027, \u0027\u003c\u0027: \u0027\u0026lt;\u0027, \u0027\u003e\u0027: \u0027\u0026gt;\u0027, \u0027\"\u0027: \u0027\u0026quot;\u0027, \"\u0027\": \u0027\u0026#39;\u0027 }[c]));\n\nconst color = r.ok === false ? \u0027#c81e1e\u0027 : r.preview ? \u0027#1a56db\u0027 : \u0027#0e9f6e\u0027;\nconst form = r.preview\n  ? `\u003cform method=\"post\" action=\"\"\u003e\n       \u003cinput type=\"hidden\" name=\"a\" value=\"${esc(r.action)}\"\u003e\n       \u003cinput type=\"hidden\" name=\"t\" value=\"${esc(r.token)}\"\u003e\n       \u003cbutton type=\"submit\" style=\"font-size:17px;padding:12px 26px;border:0;border-radius:8px;background:#1a56db;color:#fff;cursor:pointer\"\u003eConfirm\u003c/button\u003e\n     \u003c/form\u003e`\n  : \u0027\u003cp style=\"color:#52606d\"\u003eYou can close this tab.\u003c/p\u003e\u0027;\n\nconst html = `\u003c!doctype html\u003e\u003chtml lang=\"en\"\u003e\u003chead\u003e\u003cmeta charset=\"utf-8\"\u003e\n\u003cmeta name=\"viewport\" content=\"width=device-width,initial-scale=1\"\u003e\u003ctitle\u003e${esc(r.title)}\u003c/title\u003e\u003c/head\u003e\n\u003cbody style=\"font-family:Arial,Helvetica,sans-serif;background:#f5f7fa;margin:0;padding:40px 16px;color:#1f2933\"\u003e\n\u003cdiv style=\"max-width:460px;margin:0 auto;background:#fff;border-radius:12px;padding:28px;border-top:6px solid ${color}\"\u003e\n\u003ch1 style=\"font-size:22px;margin:0 0 12px\"\u003e${esc(r.title)}\u003c/h1\u003e\n\u003cp style=\"font-size:16px;line-height:1.5\"\u003e${esc(r.message)}\u003c/p\u003e\n${form}\n\u003c/div\u003e\u003c/body\u003e\u003c/html\u003e`;\n\nreturn { json: { ...r, html } };\n"
+                                     },
+                      "id":  "f558ecba-f074-ce58-8171-cae22def4d90",
+                      "name":  "Build page",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       440,
+                                       300
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "respondWith":  "text",
+                                         "responseBody":  "={{ $json.html }}",
+                                         "options":  {
+                                                         "responseHeaders":  {
+                                                                                 "entries":  [
+                                                                                                 {
+                                                                                                     "name":  "Content-Type",
+                                                                                                     "value":  "text/html; charset=utf-8"
+                                                                                                 }
+                                                                                             ]
+                                                                             }
+                                                     }
+                                     },
+                      "id":  "e3d22c82-e86f-d5d9-7a6d-0dfcb348dd11",
+                      "name":  "Show page",
+                      "type":  "n8n-nodes-base.respondToWebhook",
+                      "typeVersion":  1.1,
+                      "position":  [
+                                       660,
+                                       300
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "loose"
+                                                                        },
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "id":  "eda20741-d685-8198-8219-c83ef50816a5",
+                                                                                   "leftValue":  "={{ $json.ok === true \u0026\u0026 $json.preview !== true \u0026\u0026 $json.ignored !== true \u0026\u0026 !!$json.lead_id }}",
+                                                                                   "rightValue":  true,
+                                                                                   "operator":  {
+                                                                                                    "type":  "boolean",
+                                                                                                    "operation":  "true",
+                                                                                                    "singleValue":  true
+                                                                                                }
+                                                                               }
+                                                                           ],
+                                                            "combinator":  "and"
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "782dacb2-2f29-20dd-007c-529416f0e2d0",
+                      "name":  "Changed something?",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2,
+                      "position":  [
+                                       880,
+                                       300
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://n8ndemo.remotelyx.com/webhook/ge-send-now",
+                                         "authentication":  "genericCredentialType",
+                                         "genericAuthType":  "httpHeaderAuth",
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "{}",
+                                         "options":  {
+                                                         "timeout":  10000
+                                                     }
+                                     },
+                      "id":  "fbc3f764-a308-d4ab-3557-187262d86991",
+                      "name":  "Send emails now",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       1100,
+                                       300
+                                   ],
+                      "notes":  "Wakes GE-03 so emails go out in seconds. If this fails, GE-03 still sends within 1 minute.",
+                      "executeOnce":  true,
+                      "credentials":  {
+                                          "httpHeaderAuth":  {
+                                                                 "id":  "awy23prTBnlejc8a",
+                                                                 "name":  "GE Webhook Secret"
+                                                             }
+                                      },
+                      "onError":  "continueRegularOutput"
+                  }
+              ],
+    "connections":  {
+                        "Changed something?":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Send emails now",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Owner opened a link (GET)":  {
+                                                          "main":  [
+                                                                       [
+                                                                           {
+                                                                               "node":  "Preview action",
+                                                                               "type":  "main",
+                                                                               "index":  0
+                                                                           }
+                                                                       ]
+                                                                   ]
+                                                      },
+                        "Owner pressed Confirm (POST)":  {
+                                                             "main":  [
+                                                                          [
+                                                                              {
+                                                                                  "node":  "Apply action",
+                                                                                  "type":  "main",
+                                                                                  "index":  0
+                                                                              }
+                                                                          ]
+                                                                      ]
+                                                         },
+                        "Preview action":  {
+                                               "main":  [
+                                                            [
+                                                                {
+                                                                    "node":  "Build page",
+                                                                    "type":  "main",
+                                                                    "index":  0
+                                                                }
+                                                            ]
+                                                        ]
+                                           },
+                        "Apply action":  {
+                                             "main":  [
+                                                          [
+                                                              {
+                                                                  "node":  "Build page",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ]
+                                                      ]
+                                         },
+                        "Build page":  {
+                                           "main":  [
+                                                        [
+                                                            {
+                                                                "node":  "Show page",
+                                                                "type":  "main",
+                                                                "index":  0
+                                                            }
+                                                        ]
+                                                    ]
+                                       },
+                        "Show page":  {
+                                          "main":  [
+                                                       [
+                                                           {
+                                                               "node":  "Changed something?",
+                                                               "type":  "main",
+                                                               "index":  0
+                                                           }
+                                                       ]
+                                                   ]
+                                      }
+                    },
+    "settings":  {
+                     "executionOrder":  "v1",
+                     "saveDataErrorExecution":  "all",
+                     "saveDataSuccessExecution":  "all",
+                     "errorWorkflow":  "dxHWrimMvIDTRuqS"
+                 },
+    "pinData":  {
+
+                },
+    "active":  false
+}

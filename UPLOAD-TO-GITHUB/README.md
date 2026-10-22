@@ -7,10 +7,10 @@ Built for a made-up B2B agency, **GE Growth Agency**. All people and companies i
 
 | | Link |
 |---|---|
-| Owner dashboard | `https://<your-project>.vercel.app` |
-| Website form (source 1) | `https://<your-project>.vercel.app/form` |
-| Referral form (source 2) | `https://<your-project>.vercel.app/refer` |
-| Meta Ads leads (source 3) + hard-case Test Lab | `https://<your-project>.vercel.app/lab` (passcode in the submission) |
+| Owner dashboard | `https://ge-speed-to-lead.vercel.app` |
+| Website form (source 1) | `https://ge-speed-to-lead.vercel.app/form` |
+| Referral form (source 2) | `https://ge-speed-to-lead.vercel.app/refer` |
+| Meta Ads leads (source 3) + hard-case Test Lab | `https://ge-speed-to-lead.vercel.app/lab` (passcode in the submission) |
 | Booking page (GHL calendar "GE - Strategy Call") | `https://api.leadconnectorhq.com/widget/booking/iF7jGk4s5l57ZiAVnqfx` |
 | n8n workflows (exported JSON) | `n8n/dist/*.json` |
 | Loom | `<add link>` |

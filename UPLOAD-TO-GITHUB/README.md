@@ -138,7 +138,7 @@ Rescheduled) is in Supabase and on the dashboard.
 - **Sample-history toggle:** realistic made-up history (flagged `is_sample`) makes day one meaningful; one click shows live data only.
 - **Health line on the dashboard:** a second alert channel in case email itself is what broke.
 
-### Security
+### Security (full report: `docs/SECURITY-CHECK.md`, 24 / 24 checks passed)
 - **No key ever reaches the browser:** Supabase and the n8n secret are Vercel environment variables; n8n keys are n8n credentials.
 - **Supabase row-level security on; functions callable only with the service role.**
 - **Intake / send-now / check-now webhooks require the `x-ge-secret` header; owner links use per-record random tokens.**
@@ -164,3 +164,4 @@ Rescheduled) is in Supabase and on the dashboard.
 | `scripts/setup.ps1` · `deploy-n8n.ps1` | One-time setup · push workflows to n8n through its API |
 | `dev/harness.html` | 49 automated tests that run the real n8n Code-node code |
 | `docs/SETUP.md` · `docs/LOOM-SCRIPT.md` | Step-by-step setup · the 3-minute demo |
+| `docs/SECURITY-CHECK.md` | Automated security check of the live system: 24 / 24 passed, no key anywhere public |

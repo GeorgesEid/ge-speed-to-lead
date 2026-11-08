@@ -13,7 +13,7 @@ Built for a made-up B2B agency, **GE Growth Agency**. All people and companies i
 | Meta Ads leads (source 3) + hard-case Test Lab | `https://ge-speed-to-lead.vercel.app/lab` (passcode in the submission) |
 | Booking page (GHL calendar "GE - Strategy Call") | `https://api.leadconnectorhq.com/widget/booking/iF7jGk4s5l57ZiAVnqfx` |
 | n8n workflows (exported JSON) | `n8n/dist/*.json` |
-| Loom | `<add link>` |
+| Loom (3 min demo) | https://www.loom.com/share/6c18171c1944442c930a559044c2725f |
 
 Measured live: first reply in **4-6 seconds** after opt-in; the same lead posted 3 times at once produced **one** email.
 

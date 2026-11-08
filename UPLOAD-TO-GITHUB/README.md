@@ -163,5 +163,5 @@ Rescheduled) is in Supabase and on the dashboard.
 | `web/` | Vercel site: dashboard, forms, Test Lab, `api/` server functions |
 | `scripts/setup.ps1` · `deploy-n8n.ps1` | One-time setup · push workflows to n8n through its API |
 | `dev/harness.html` | 49 automated tests that run the real n8n Code-node code |
-| `docs/SETUP.md` · `docs/LOOM-SCRIPT.md` | Step-by-step setup · the 3-minute demo |
+| `docs/SETUP.md` | Step-by-step setup |
 | `docs/SECURITY-CHECK.md` | Automated security check of the live system: 24 / 24 passed, no key anywhere public |
